@@ -1,16 +1,33 @@
 # Management of Species Data
 
- * Deciders: @CamWebb, @SebastianGaertner
- * Date: 2022-11-02
+## Document history
+
+This ADR was first accepted in late 2022, with deciders @CamWebb and
+@SebastianGaertner.  In late 2023 it was felt important to have a more
+detailed document (a ‘whitepaper’) to guide development of a
+stand-alone plant species service (see [project][4]). This ADR can
+serve as this guide and is being reworked in early 2024, to be decided
+by @CamWebb, @SebastianGaertner, and @dadiorchen.
 
 ## Context
 
-**Species**: The trees being recorded by Treetracker belong to many
+**Species**: The plants being recorded by Treetracker belong to many
 different species. While some organizations and token buyers do not
-require species information, others do. Species vary greatly in their
-ecological characteristics and any accurate measure of carbon storage
-requires species data.
+require species information, others do. Species information is
+desirable for a wide range of reasons, including:
 
+ * Estimating carbon storage: species vary greatly in their carbon
+   density;
+ * Species selection for different habitats: species vary greatly in
+   their ecological characteristics and site tolerance;
+ * Biodiversity banking: the simplest meaning of ‘biodiversity’ is
+   species richness: more species = more biodiversity;
+ * Curiosity, education, aesthetics and spiritual value: humans
+   naturally seek to name things that vary, and a more diverse forest
+   with elements we can name is simply more interesting than a
+   monoculture, and is likley to be more valuable in the eyes of
+   locals, and donors.
+ 
 **Identification**: Identifying species and managing species
 information is hard. While many species used in reforestation are
 globally common, there is a very ‘long tail’ of hundreds of rarer
@@ -18,34 +35,42 @@ species that will be used by organizations. Species can be hard to
 identify and differentiate from similar species using low-resolution
 photos.  For many species the scientific taxonomy itself can be
 complex and unresolved.  Given these complexities it is necessary to
-use a two-stage system: matching images to morphotypes first, then
-identifying morphotypes to scientific names, if possible.
+use a two-stage approach: matching images to morphotypes first, then
+identifying morphotypes to the most likely scientific name, if
+possible.
 
 **Species in the admin panel**: The current Treetracker system evolved
-opportunistically. At first anyone could add a species name in the
-admin panel.  There was soon a mix of folk and scientific names,
+opportunistically. At first anyone could add a _species name in the
+Admin panel_.  There was soon a mix of folk and scientific names,
 multiple name strings for the same species, and some names that
-referred to many species.  The involvement of an experienced tree
-botanist in 2020 led to the development of a [herbarium][1] system
-(and see [guides][3]), within GS, but not directly linked to the
-database. Images from around the world are examined and incorporated
-into a reference set of images and names (please read [this][2]). The
-herbarium species codes are now present in the admin panel, and admin
-control is now exercised over the management of names in the admin
-panel.
+referred to many species.  The involvement of an experienced botanist
+in 2020 led to the development of a _[herbarium][1] system_ (and see
+[guides][3]), within GS, but not directly linked to the
+database. Images from around the world are examined by the botanist
+and incorporated into a reference set of images and names (please read
+[this][2]), and herbarium species codes can be added to the names in
+the Admin panel species list where the botanist has had time to review
+the Admin panel names.  Metadata about all admin panel names is
+managed in a third data resource, an _Airtable database_, which serves
+as a necessary information buffer between the Admin panel names and
+the herbarium.  Clearly, a more integrated system is needed for
+manageing names and name metadata. A solution is proposed in this
+document.
+
+The current dependence on a single volunteer botanist to maintain the
+reference herbarium is also a weak link as the number of taxa grows,
+and is discussed her.
 
 **Recording determinations**: Currently, the choice of species for a
 capture made by an admin panel user overwrites any previous decisions
 for that capture. Each choice _is_ logged in the `audit` table, but in
-a JSON structure that is inefficient to use in table joins.
+a JSON structure that is inefficient to use in table joins.  A new
+system must efficiently record multiple determinations for each
+seedling, and for matches of admin panel names and reference names.
 
-_(The current dependence on a single volunteer botanist to maintain the
-reference herbarium is a weak link as the number of taxa grows, but
-this matter is not considered in this ADR.)_
+## Problem Statements
 
-## Problem Statement
-
- 1. Most organizations have local names for the species they are
+ *  **A** Most organizations have local names for the species they are
     planting, but may not know the scientific name and may not have
     time for or interest in matching their taxa with the herbarium
     taxa. Being provided with the total list of accepted GS taxa in
@@ -54,16 +79,45 @@ this matter is not considered in this ADR.)_
     select an identification. In addition, for the botanist to have
     access to an organization’s local species list is very helpful,
     but communicating with the organization to get this list can be
-    hard.  What is needed is: a _short_ list of local names that the
-    organization can edit and add to.  
- 2. The current way that determination decisions are recorded in the
+    hard.  What is needed is: a **short list of local names** visible
+    to each Admin panel user, that can be edited and added to.
+ *  **B** Infrastructure must be built to **match this local to the global**
+    set of taxa (with TT) by another Admin panel user.
+ *  **C** The current way that determination decisions are recorded in the
     DB prevents many important queries. The act of choosing a species
-    is a key data element, and needs its own table.
+    for a seedling, and matching a local name to a global name (known
+    as “**determinations**”) needs to be recorded, with metadata of:
+    person, timestamp and reason.
+ *  **D** The external data in the herbarium database and Airtable database
+    need to be **integrated** directly into the TT data model.
+ *  **E** The metadata collated about each species in the herbarium module
+    and the large set of sample images provided by the links to TT captures 
+    represents a **globally valuable information resource**. A web service 
+    can be built around this for other users outside GS.
+ *  **F** The social question of who has the **authority** to make a
+    definitive match between local and global taxa must be
+    resolved.
 
-## Proposed solution
+## Proposed solutions
 
-**Overall**: _1. Separate local, organization species from global,
-vetted species, and 2. track each determination event, and each
+### 1. Modify TT database structure
+
+### 2. Modify ‘Verify’ admin panel
+
+### 3. Create new ‘Herbarium’ admin panel
+
+### 4. Create external view and web service for herbarium data 
+
+### 5. Determine authorization process for trusted ‘taxonomic editors’
+
+
+ 
+ 
+ information 
+ 
+ 
+ 1. Separate local, organization species from global, vetted species
+ 2. track each determination event, and each
 local-to-global mapping within the database._
 
 ### User workflow
@@ -140,3 +194,4 @@ link. The UI element could operate thus:
 [1]: https://github.com/Greenstand/Tree_Species
 [3]: https://herbarium.treetracker.org/guide/index.html
 [2]: https://herbarium.treetracker.org/guide/names.html
+[4]: https://github.com/orgs/Greenstand/projects/84
