@@ -111,6 +111,8 @@ communication in some parts of this solution.
 
 ### 1. Modify TT database structure
 
+_(addresses problems A, B, C, D)_
+
 The following schema indicates a minimum set of new tables and fields
 to contain the data for the suggested solution.  The **herbarium+**
 table will likely be a set of interconnected tables that replicate the
@@ -121,17 +123,17 @@ data in the [current herbarium XML schema][5] and Airtable database.
 trees       det                 localname       taxonmap            herbarium+
 =====       ==========          =========       =============       =========
 id    <-+   id              +-> id        <-+   id              +-> id
-        +-- tree_id⚿        |   name        +-- localname_id⚿   |   morphocode
-            localname_id⚿ --+   sci_name?       species_id⚿   --+   name
-            admin_user_id⚿      org_id⚿         user_id⚿            (metadata)
-            timestamp           user_id⚿        confidence
+        +-- tree_id@        |   name        +-- localname_id@   |   morphocode
+            localname_id@ --+   sci_name?       species_id@   --+   name
+            admin_user_id@      org_id@         user_id@            (metadata)
+            timestamp           user_id@        confidence
                                 timestamp       reason
                                                 timestamp
 ```
 
 Key: 
 
- * ⚿ indicates a foreign key; “?” indicates a field may be NULL.
+ * “@” indicates a foreign key; “?” indicates a field may be NULL.
  * `admin_user_id` joins to existing `admin_user.id`.
  * `org_id` joins to existing `entity.id` for an organization.
  * The `trees` table listed here refers to the existing schema where a
@@ -150,12 +152,19 @@ Key:
 The **displayed species** in Treetracker, will be:
 
  * `localname.name`, when there is not yet a `taxonmap` connection to
-   the herbarium, and,
+   the herbarium. The most recent determination will be shown if there
+   are several.
  * `herbarium.name` plus `localname.name` plus `link`, when there is a
    `taxonmap` connection to the herbarium. `link` will be a hyperlink
-   to the public representation of species data in `herbarium+`.
+   to the public representation of species data in `herbarium+`. Where
+   there are several match choices made between a localname and a
+   globalname, the latest choice will be shown, unless an
+   authority/confidence hierarchy has been created for different users
+   of the herbarium.
 
 ### 2. Modify ‘Verify’ admin panel
+
+_(addresses problems A, C)_
 
  * Hiding the current species list
  * Adding the capability to add a species name
@@ -163,6 +172,8 @@ The **displayed species** in Treetracker, will be:
  * Tracking each determination of a seedling in the `det` table.
 
 ### 3. Create new ‘Herbarium’ admin panel
+
+_(addresses problems B, C, D)_
 
 This will have two views:
 
@@ -192,6 +203,8 @@ explicit reason for the choice.
 
 ### 4. Create external view and web service for herbarium data 
 
+_(addresses problem E)_
+
 The data in the `herbarium+` tables should be displayed both for TT
 users seeking more information about a particular seedling, and for
 external users interested in the accumulating species list and data in
@@ -199,6 +212,8 @@ TT. The eight-character ‘taxon code’ can be used as an identifier for
 external users to refer to the TT herbarium.
 
 ### 5. Determine authorization process for trusted ‘taxonomic editors’
+
+_(addresses problem F)_
 
 The value of this system is partly based on the informed confidence a
 user has that a seedling has been given the correct scientific
@@ -212,26 +227,54 @@ time, relying on a single botanist to vet the species names is a
 serious bottleneck for TT and not scaleable. Some intermediate
 intermediate is needed between a single expert and a free-for-all of
 admin users.  Determining this balance will be an important element of
-building the proposed system.
+building the proposed system.  
 
-## User workflow
+It is suggested that there actually be two levels of access: i) those
+with authority to add/edit entries in the herbarium global species
+list and to match local names, and ii) those with authority only to
+match local names; numerically there will be more local-global matches
+that need to be made than need to add taxa to the global list, and
+semi-skilled users may be needed to make those local-global matches.
+
+## Workflows
+
+### Org user
 
  1. Each org creates a set of local names in the admin panel: name entries
     could just be local language names, or they may also have a
     tentative, unvetted scientific name. Those are the only names that
     appear to the org user (who starts with a blank list of names).
- 2. The org user then determines the local name for each capture. The
-    determinations are logged in a joining `det` table, so that
-    multiple opinions can be made about a tree’s name. In general, any
-    display of the name will use the latest determination.
- 3. A ‘species admin’ level user of the admin panel will create
-    mappings between the localname (= morphotype) and a vetted list of
-    global names (these may also just be morphotype codes in the case
-    where the final scientific name has not been settled). E.g.,
-    `"mangga"@orgX` is mapped to global `MANGINDI`. Once this vetting
-    has happened, individual trees are then linked out to the global
-    knowledge base. E.g., wood densities can be imported and carbon
-    calculations could thus be made.
+ 2. The org user then determines the local name for each
+    capture. Additional determinations may be made by the same or
+    different users with authority to edit these captures.
+
+### Local-global species match user
+
+ 1. A ‘species match admin’ level user of the admin panel will choose
+    an Org’s local name to address. Images of seedlings determined to
+    that localname will be shown on the left.
+ 2. A global species dropdown will populate an image panel on the
+    right with diagnostic images of a particular species.
+ 3. Once a match has been found, e.g., `"mangga"@orgX` is mapped to
+    global `MANGINDI`, a form will record text from the user about the
+    reason for the match. ‘Save’ will write to the `taxonmap` table.
+ 
+### Herbarium user
+
+ 1. Create, edit, delete taxa, filling in fields in a form. Note: even
+    at this herbarium level, some taxa may still only be given
+    ‘morphotype codes’ without species names. It will often be clear
+    that there is a distinctive species, at several sites, but no name
+    can be found for it. Similarly, some plant genera are almost
+    indistinguishable at a seedling stage (e.g., _Citrus_), and will
+    need to be treated in TT as a single taxonomy unit, identified
+    only to genus.
+ 2. Diagnostic images from within TT, and from other sites
+    (esp. iNaturalist) will be easily assembled into a gallery for each
+    herbarium taxon.
+ 3. For the Herbarium UI user, who also has access to the matching UI,
+    switching back and forth between these UIs should be easy and rapid.
+
 
 [1]: https://github.com/Greenstand/Tree_Species
 [3]: https://herbarium.treetracker.org/guide/index.html
